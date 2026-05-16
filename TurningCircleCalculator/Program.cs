@@ -1,28 +1,43 @@
-﻿using Terminal.Gui;
+using Terminal.Gui;
+using TurningCircleCalculator.Clock;
+using TurningCircleCalculator.Modules;
+using TurningCircleCalculator.Modules.Advance;
+using TurningCircleCalculator.Modules.TurningCircle;
+using TurningCircleCalculator.Preferences;
+using TurningCircleCalculator.ViewModels;
 using TurningCircleCalculator.Views;
 
 namespace TurningCircleCalculator;
 
-/// <summary>
-/// The entry point class for the Turning Circle Calculator application.
-/// </summary>
 internal static class Program
 {
-    /// <summary>
-    /// The main entry point for the application.
-    /// Initializes the UI and runs the application loop.
-    /// </summary>
-    /// <param name="args">Command-line arguments.</param>
     private static void Main(string[] args)
     {
         Application.Init();
 
-        var setup = new TimeSetupDialog();
-        Application.Run(setup);
+        // Time setup
+        var setupDialog = new TimeSetupDialog();
+        Application.Run(setupDialog);
+        var selectedTime = setupDialog.SelectedTime;
 
-        string selectedTime = setup.SelectedTime;
+        // Infrastructure
+        var clock = new SimulatedClock(selectedTime);
+        var prefPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "TurningCircleCalculator", "prefs.json");
+        var prefs = new JsonPreferencesStore(prefPath);
+        var context = new ModuleContext(clock, prefs);
 
-        Application.Run(new MainView(selectedTime));
+        // Module registration — adding a new module is one line here
+        var registry = new ModuleRegistry()
+            .Register(new TurningCircleModule())
+            .Register(new AdvanceModule());
+
+        // Launch
+        var vm = new MainViewModel(clock);
+        Application.Run(new MainView(vm, registry, context));
+
+        clock.Dispose();
         Application.Shutdown();
     }
 }

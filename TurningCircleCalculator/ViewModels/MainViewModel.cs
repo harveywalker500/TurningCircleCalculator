@@ -1,112 +1,90 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using TurningCircleCalculator.Models;
+using TurningCircleCalculator.Clock;
 
 namespace TurningCircleCalculator.ViewModels;
 
-public class MainViewModel : INotifyPropertyChanged
+public class MainViewModel : ViewModelBase
 {
-    private DateTime _currentTime;
-    private double _initialCourse;
-    private double _newCourse;
-    private double _odometer;
-    private string _direction = "Left";
-    private string _turnLog = string.Empty;
-    private CalculationResult _lastResult;
-
+    private readonly IClock _clock;
     private DateTime? _toiTime;
     private bool _isToiActive;
-    private string _toiCountdown = string.Empty;
+    private string _toiCountdown = "TOI: Not Set";
     private string _toiDisplayTime = "TOI @ --:--:--";
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    public DateTime CurrentTime
+    public MainViewModel(IClock clock)
     {
-        get => _currentTime;
-        set { _currentTime = value; OnPropertyChanged(); UpdateToiCountdown(); }
+        _clock = clock;
     }
 
-    public double InitialCourse
-    {
-        get => _initialCourse;
-        set { _initialCourse = value; OnPropertyChanged(); }
-    }
+    public IClock Clock => _clock;
 
-    public double NewCourse
-    {
-        get => _newCourse;
-        set { _newCourse = value; OnPropertyChanged(); }
-    }
-
-    public double Odometer
-    {
-        get => _odometer;
-        set { _odometer = value; OnPropertyChanged(); }
-    }
-
-    public string Direction
-    {
-        get => _direction;
-        set { _direction = value; OnPropertyChanged(); }
-    }
-
-    public string TurnLog
-    {
-        get => _turnLog;
-        set { _turnLog = value; OnPropertyChanged(); }
-    }
-
-    public CalculationResult LastResult
-    {
-        get => _lastResult;
-        set { _lastResult = value; OnPropertyChanged(); }
-    }
+    public DateTime CurrentTime => _clock.Now;
+    public bool IsClockPaused => _clock.IsPaused;
 
     public DateTime? ToiTime
     {
         get => _toiTime;
-        set { _toiTime = value; OnPropertyChanged(); UpdateToiCountdown(); }
+        set { SetField(ref _toiTime, value); Tick(); }
     }
 
     public bool IsToiActive
     {
         get => _isToiActive;
-        set { _isToiActive = value; OnPropertyChanged(); }
+        private set => SetField(ref _isToiActive, value);
     }
 
     public string ToiCountdown
     {
         get => _toiCountdown;
-        set { _toiCountdown = value; OnPropertyChanged(); }
+        private set => SetField(ref _toiCountdown, value);
     }
 
     public string ToiDisplayTime
     {
         get => _toiDisplayTime;
-        set { _toiDisplayTime = value; OnPropertyChanged(); }
+        private set => SetField(ref _toiDisplayTime, value);
     }
 
     public event Action? OnImpact;
 
-    public void Calculate()
+    /// <summary>Called by the UI poll loop (every 500 ms) to refresh time-dependent state.</summary>
+    public void Tick()
     {
-        var result = Models.Calculator.Calculate(InitialCourse, NewCourse, Odometer, Direction == "Left" ? "By the Left" : "By the Right");
-        LastResult = result;
+        OnPropertyChanged(nameof(CurrentTime));
+        OnPropertyChanged(nameof(IsClockPaused));
+        UpdateToiCountdown();
+    }
 
-        var logEntry = $"""
-            [{CurrentTime:HH:mm:ss}] {result.Course1:F1}° -> {result.Course2:F1}° ({result.TurnDirection})
-            Diff: {result.AngleDifference:F2}°, Rad: {(result.IsInfiniteRadius ? "Inf" : result.Radius.ToString("F2"))}, Chord: {(result.IsInfiniteRadius ? "-" : result.Chord.ToString("F2"))}
-            ----------------------------------------
-            """;
-        
-        TurnLog = logEntry + TurnLog;
-        InitialCourse = result.Course2;
+    public void PauseClock()
+    {
+        _clock.Pause();
+        OnPropertyChanged(nameof(IsClockPaused));
+    }
+
+    public void ResumeClock()
+    {
+        _clock.Resume();
+        OnPropertyChanged(nameof(IsClockPaused));
+    }
+
+    public void SetClockTime(string timeString)
+    {
+        _clock.SetTime(timeString);
+        Tick();
+    }
+
+    public bool TrySetToi(string timeString)
+    {
+        if (!DateTime.TryParse(timeString, out var toi)) return false;
+        var now = _clock.Now;
+        var target = new DateTime(now.Year, now.Month, now.Day, toi.Hour, toi.Minute, toi.Second);
+        if (target < now) target = target.AddDays(1);
+        ToiTime = target;
+        return true;
     }
 
     private void UpdateToiCountdown()
     {
-        if (ToiTime == null)
+        if (_toiTime == null)
         {
             ToiCountdown = "TOI: Not Set";
             ToiDisplayTime = "TOI @ --:--:--";
@@ -114,9 +92,9 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        ToiDisplayTime = $"TOI @ {ToiTime.Value:HH:mm:ss}";
+        ToiDisplayTime = $"TOI @ {_toiTime.Value:HH:mm:ss}";
+        var diff = _toiTime.Value - _clock.Now;
 
-        var diff = ToiTime.Value - CurrentTime;
         if (diff.TotalSeconds <= 0)
         {
             ToiCountdown = "IMPACT!";
@@ -131,10 +109,5 @@ public class MainViewModel : INotifyPropertyChanged
             ToiCountdown = $"TOI: {diff:hh\\:mm\\:ss}";
             IsToiActive = false;
         }
-    }
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }
