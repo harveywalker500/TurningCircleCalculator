@@ -1,4 +1,5 @@
 using Terminal.Gui;
+using TurningCircleCalculator.Models;
 using TurningCircleCalculator.Modules;
 using TurningCircleCalculator.ViewModels;
 
@@ -14,6 +15,9 @@ public class TurningCircleView : View
     private readonly Label _angleDiffValue;
     private readonly Label _radiusValue;
     private readonly Label _chordValue;
+    private readonly Label _chordBearingValue;
+    private readonly Label _halfAngleValue;
+    private readonly Label _diagramLabel;
     private readonly TextView _logView;
     private readonly ModuleContext _context;
 
@@ -56,22 +60,32 @@ public class TurningCircleView : View
         var calcBtn = new Button("Calculate") { X = 1, Y = 9 };
         calcBtn.Clicked += OnCalculate;
 
-        var resultsFrame = new FrameView("Results") { X = 1, Y = 11, Width = Dim.Fill() - 1, Height = 5 };
+        var resultsFrame = new FrameView("Results") { X = 1, Y = 11, Width = 34, Height = 8 };
         var lblAngle = new Label("Angle Diff:") { X = 0, Y = 0 };
-        _angleDiffValue = new Label("-") { X = LabelWidth - 5, Y = 0, Width = 20 };
+        _angleDiffValue = new Label("-") { X = LabelWidth - 5, Y = 0, Width = 16 };
         var lblRadius = new Label("Radius:") { X = 0, Y = 1 };
-        _radiusValue = new Label("-") { X = LabelWidth - 5, Y = 1, Width = 20 };
+        _radiusValue = new Label("-") { X = LabelWidth - 5, Y = 1, Width = 16 };
         var lblChord = new Label("Chord:") { X = 0, Y = 2 };
-        _chordValue = new Label("-") { X = LabelWidth - 5, Y = 2, Width = 20 };
-        resultsFrame.Add(lblAngle, _angleDiffValue, lblRadius, _radiusValue, lblChord, _chordValue);
+        _chordValue = new Label("-") { X = LabelWidth - 5, Y = 2, Width = 16 };
+        var lblChordBrg = new Label("Chord brg:") { X = 0, Y = 3 };
+        _chordBearingValue = new Label("-") { X = LabelWidth - 5, Y = 3, Width = 16 };
+        var lblHalf = new Label("Half-angle:") { X = 0, Y = 4 };
+        _halfAngleValue = new Label("-") { X = LabelWidth - 5, Y = 4, Width = 16 };
+        resultsFrame.Add(lblAngle, _angleDiffValue, lblRadius, _radiusValue,
+                         lblChord, _chordValue, lblChordBrg, _chordBearingValue,
+                         lblHalf, _halfAngleValue);
 
-        var logFrame = new FrameView("Turn Log") { X = 1, Y = 17, Width = Dim.Fill() - 1, Height = Dim.Fill() - 1 };
+        var diagramFrame = new FrameView("Diagram") { X = 36, Y = 11, Width = Dim.Fill() - 1, Height = 10 };
+        _diagramLabel = new Label("") { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() };
+        diagramFrame.Add(_diagramLabel);
+
+        var logFrame = new FrameView("Turn Log") { X = 1, Y = 21, Width = Dim.Fill() - 1, Height = Dim.Fill() - 1 };
         _logView = new TextView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(), ReadOnly = true };
         logFrame.Add(_logView);
 
         Add(lblCourse1, _initialCourseField, lblCourse2, _newCourseField,
             lblOdo, _odometerField, lblDir, _directionRadio,
-            calcBtn, resultsFrame, logFrame);
+            calcBtn, resultsFrame, diagramFrame, logFrame);
 
         _vm.PropertyChanged += (_, e) =>
         {
@@ -84,6 +98,8 @@ public class TurningCircleView : View
                 _radiusValue.Text = r.IsInfiniteRadius ? "Infinite" : r.Radius.ToString("F4");
                 _chordValue.Text = r.IsInfiniteRadius ? "-" : r.Chord.ToString("F4");
             }
+            if (e.PropertyName == nameof(TurningCircleViewModel.LastChordExit))
+                RefreshChordExit();
         };
     }
 
@@ -94,5 +110,22 @@ public class TurningCircleView : View
         _newCourseField.Text = "";
         _odometerField.Text = "";
         _newCourseField.SetFocus();
+    }
+
+    private void RefreshChordExit()
+    {
+        var ce = _vm.LastChordExit;
+        if (ce is null || ce.Value.IsDegenerate)
+        {
+            _chordBearingValue.Text = "-";
+            _halfAngleValue.Text = "-";
+            _diagramLabel.Text = "";
+            return;
+        }
+        var v = ce.Value;
+        _chordBearingValue.Text = $"{v.ChordBearingDeg:F2}°";
+        _halfAngleValue.Text = $"{v.HalfAngleDeg:F2}°";
+        var dir = _vm.Direction == "Left" ? TurnDirection.Left : TurnDirection.Right;
+        _diagramLabel.Text = AsciiDiagrams.TurnDiagram(v.TurnAngleDeg, dir, width: 14, height: 8);
     }
 }

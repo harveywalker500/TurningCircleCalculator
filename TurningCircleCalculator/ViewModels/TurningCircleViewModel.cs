@@ -10,6 +10,7 @@ public class TurningCircleViewModel : ViewModelBase
     private string _direction = "Left";
     private string _turnLog = string.Empty;
     private CalculationResult? _lastResult;
+    private ChordExit? _lastChordExit;
 
     public double InitialCourse
     {
@@ -47,15 +48,26 @@ public class TurningCircleViewModel : ViewModelBase
         private set => SetField(ref _lastResult, value);
     }
 
+    public ChordExit? LastChordExit
+    {
+        get => _lastChordExit;
+        private set => SetField(ref _lastChordExit, value);
+    }
+
     public void Calculate(DateTime timestamp)
     {
         var label = Direction == "Left" ? "By the Left" : "By the Right";
         var result = Calculator.Calculate(InitialCourse, NewCourse, Odometer, label);
         LastResult = result;
 
+        var turnDir = Direction == "Left" ? TurnDirection.Left : TurnDirection.Right;
+        var chordExit = ChordGeometry.ComputeChordExit(InitialCourse, NewCourse, turnDir);
+        LastChordExit = chordExit;
+
+        var chordBearingText = chordExit.IsDegenerate ? "-" : $"{chordExit.ChordBearingDeg:F1}°";
         var entry = $"""
             [{timestamp:HH:mm:ss}] {result.Course1:F1}° -> {result.Course2:F1}° ({result.TurnDirection})
-            Diff: {result.AngleDifference:F2}°, Rad: {(result.IsInfiniteRadius ? "Inf" : result.Radius.ToString("F2"))}, Chord: {(result.IsInfiniteRadius ? "-" : result.Chord.ToString("F2"))}
+            Diff: {result.AngleDifference:F2}°, Rad: {(result.IsInfiniteRadius ? "Inf" : result.Radius.ToString("F2"))}, Chord: {(result.IsInfiniteRadius ? "-" : result.Chord.ToString("F2"))} @ {chordBearingText}
             ----------------------------------------
             """;
 

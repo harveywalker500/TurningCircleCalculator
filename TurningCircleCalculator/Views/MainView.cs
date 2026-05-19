@@ -119,9 +119,14 @@ public class MainView : Window
 
     private MenuBarItem BuildModuleMenu()
     {
-        var items = _registry.Modules.Select(m =>
-            new MenuItem($"_{m.Title}", m.Category, () => ActivateModule(m))).ToArray();
-        return new MenuBarItem("_Modules", items);
+        var groups = _registry.Modules
+            .GroupBy(m => m.Category)
+            .OrderBy(g => g.Key)
+            .Select(g => (MenuItem)new MenuBarItem(
+                $"_{g.Key}",
+                g.Select(m => new MenuItem($"_{m.Title}", string.Empty, () => ActivateModule(m))).ToArray()))
+            .ToArray();
+        return new MenuBarItem("_Modules", groups);
     }
 
     private void ActivateModule(ICalculatorModule module)
