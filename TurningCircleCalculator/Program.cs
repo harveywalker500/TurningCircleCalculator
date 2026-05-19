@@ -2,6 +2,13 @@ using Terminal.Gui;
 using TurningCircleCalculator.Clock;
 using TurningCircleCalculator.Modules;
 using TurningCircleCalculator.Modules.Advance;
+using TurningCircleCalculator.Modules.AngleOnBow;
+using TurningCircleCalculator.Modules.ChordExit;
+using TurningCircleCalculator.Modules.DeadReckoning;
+using TurningCircleCalculator.Modules.RangeFinder;
+using TurningCircleCalculator.Modules.Statistics;
+using TurningCircleCalculator.Modules.TargetSpeed;
+using TurningCircleCalculator.Modules.TurnPredictor;
 using TurningCircleCalculator.Modules.TurningCircle;
 using TurningCircleCalculator.Preferences;
 using TurningCircleCalculator.ViewModels;
@@ -31,7 +38,14 @@ internal static class Program
         // Module registration — adding a new module is one line here
         var registry = new ModuleRegistry()
             .Register(new TurningCircleModule())
-            .Register(new AdvanceModule());
+            .Register(new AdvanceModule())
+            .Register(new TurnPredictorModule())
+            .Register(new ChordExitModule())
+            .Register(new DeadReckoningModule())
+            .Register(new RangeFinderModule())
+            .Register(new TargetSpeedModule())
+            .Register(new AngleOnBowModule())
+            .Register(new StatisticsModule());
 
         // Launch
         var vm = new MainViewModel(clock);

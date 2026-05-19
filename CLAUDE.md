@@ -36,7 +36,15 @@ A .NET 10.0 TUI application using **Terminal.Gui v1.19.0**, following MVVM + a p
 
 **`Clock/`** — `IClock` (interface for testability) + `SimulatedClock` (production). The VM never holds a timer or calls `Thread.Sleep`; it just reads `Clock.Now`. Tests use `FakeClock` from the test project. `SimulatedClock.ParseOrNow` is `internal` and exposed to tests via `InternalsVisibleTo`.
 
-**`Models/Calculator.cs`** — pure static math. `radius = arc / θ`, `chord = 2r·sin(θ/2)`. Returns `IsInfiniteRadius = true` when courses are identical.
+**`Models/`** — pure static math, no Terminal.Gui or UI deps. Files:
+- `Calculator.cs` — `radius = arc / θ`, `chord = 2r·sin(θ/2)`. `IsInfiniteRadius = true` when courses are identical.
+- `NavConstants.cs` — nautical mile, knot conversions, quadrant sizes, U-Boat dims, min turn radius.
+- `TurnPredictor.cs` — quadratic radius predictor from speed (Krigsmarine pg 27); clamped variant honours the 102m floor.
+- `ChordGeometry.cs` — `ComputeChordExit(initialCourse, newCourse, TurnDirection)` returning a `ChordExit` record with chord/tangent bearings and half-angle.
+- `Optics.cs` — `RangeMetersFromCentiradian`, `TargetSpeedKnots`, `AngleOnBowFromLength` (asin form, clamped).
+- `DeadReckoning.cs` — `DistanceMeters/DistanceNauticalMiles(speedKn, TimeSpan)`.
+- `Statistics.cs` — `Mean`, `SampleStandardDeviation` (n-1 form), `Compute` returning a `Stats` record.
+- `AsciiDiagrams.cs` — `TurnDiagram(angle, direction, w, h)` rendering a small turn diagram for use in `Label` widgets.
 
 **`ViewModels/`**
 - `ViewModelBase` — `INotifyPropertyChanged` with `SetField<T>` (skips raise when value unchanged)
@@ -49,8 +57,19 @@ A .NET 10.0 TUI application using **Terminal.Gui v1.19.0**, following MVVM + a p
 - `ICalculatorModule` — contract: `Id`, `Title`, `Category`, `CreateView(ModuleContext)`
 - `ModuleContext` — shared clock + prefs injected into every module's `CreateView`
 - `ModuleRegistry` — explicit `Register()` + `ScanAssembly()` scan; preserves insertion order
-- `TurningCircle/` — turning circle module (delegates calculation to `TurningCircleViewModel`)
-- `Advance/` — advance & transfer module (Advance = `r·sin θ`, Transfer = `r·(1 − cos θ)`)
+- `TurningCircle/` — turning circle (delegates to `TurningCircleViewModel`; also displays chord-exit and ASCII diagram)
+- `Advance/` — advance & transfer (Advance = `r·sin θ`, Transfer = `r·(1 − cos θ)`)
+- `TurnPredictor/` — predicted radius from speed
+- `ChordExit/` — standalone chord-exit calculator + ASCII diagram
+- `DeadReckoning/` — live (mark + tick from clock) or manual (typed elapsed) distance
+- `RangeFinder/` — centiradian → range
+- `TargetSpeed/` — distance + interval → knots / m·s⁻¹ / m·min⁻¹
+- `AngleOnBow/` — range + length + view width → AoB
+- `Statistics/` — multi-line input → mean and sample standard deviation
+
+The Modules menu is grouped by `Category` (`MainView.BuildModuleMenu` does `GroupBy(m => m.Category)`). Use `"Navigation"`, `"Targeting"`, or `"Reference"` for new modules.
+
+Namespace gotcha: `Modules/TurnPredictor/` shadows the type `Models.TurnPredictor`, so inside that view-model you must fully qualify as `Models.TurnPredictor.PredictRadiusMeters(...)`. Same for `Modules/DeadReckoning/` (which already uses `Models.DeadReckoning.DistanceMeters(...)`).
 
 **`Preferences/`** — `IPreferencesStore` + `JsonPreferencesStore` (key/value, lazy-load, explicit `Save()`)
 

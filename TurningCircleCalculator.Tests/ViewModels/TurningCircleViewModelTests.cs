@@ -1,4 +1,5 @@
 using FluentAssertions;
+using TurningCircleCalculator.Models;
 using TurningCircleCalculator.ViewModels;
 
 namespace TurningCircleCalculator.Tests.ViewModels;
@@ -68,5 +69,37 @@ public class TurningCircleViewModelTests
 
         raised.Should().Contain(nameof(TurningCircleViewModel.LastResult));
         raised.Should().Contain(nameof(TurningCircleViewModel.TurnLog));
+        raised.Should().Contain(nameof(TurningCircleViewModel.LastChordExit));
+    }
+
+    [Fact]
+    public void Calculate_PopulatesLastChordExit_ForRightTurn()
+    {
+        var vm = new TurningCircleViewModel
+        {
+            InitialCourse = 0,
+            NewCourse = 90,
+            Odometer = 100,
+            Direction = "Right"
+        };
+        vm.Calculate(Stamp);
+        vm.LastChordExit.Should().NotBeNull();
+        vm.LastChordExit!.Value.IsDegenerate.Should().BeFalse();
+        vm.LastChordExit.Value.ChordBearingDeg.Should().BeApproximately(45, 1e-9);
+        vm.LastChordExit.Value.TurnAngleDeg.Should().BeApproximately(90, 1e-9);
+    }
+
+    [Fact]
+    public void Calculate_LogIncludesChordBearing()
+    {
+        var vm = new TurningCircleViewModel
+        {
+            InitialCourse = 0,
+            NewCourse = 90,
+            Odometer = 100,
+            Direction = "Right"
+        };
+        vm.Calculate(Stamp);
+        vm.TurnLog.Should().Contain("45.0°");
     }
 }
